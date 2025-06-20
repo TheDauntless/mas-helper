@@ -2,7 +2,7 @@
   "name": "mas-helper",
   "displayName": "mas-helper",
   "description": "Automatically resolves MASTG references and provide autocomplete for MAS IDs",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.97.0"
   },
