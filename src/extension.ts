@@ -113,7 +113,7 @@ function getAllMarkdownFiles(): string[] {
         return [];
     }
 
-    return findMarkdownFilesRecursive(rootPath);
+    return sort_unique(findMarkdownFilesRecursive(rootPath));
 }
 
 function findMarkdownFilesRecursive(dir: string): string[] {
@@ -123,23 +123,44 @@ function findMarkdownFilesRecursive(dir: string): string[] {
         const files = fs.readdirSync(dir, { withFileTypes: true });
 
         for (const file of files) {
+            if(file.name == "docs" || file.name.startsWith(".")){
+                console.log(file.name, "is ignored");
+                continue
+            }
             const filePath = path.join(dir, file.name);
 
             if (file.isDirectory()) {
                 results = results.concat(findMarkdownFilesRecursive(filePath));
-            } else if (/^MASTG-(TOOL|TECH|TEST)-\d{4}\.md$/.test(file.name)) {
+            } else if (/^MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}\.md$/.test(file.name)) {
                 results.push(filePath);
             }
         }
-    } catch (err) {
+    } 
+    catch (err) {
         console.error(`Error reading directory ${dir}:`, err);
     }
 
     return results;
 }
 
+function sort_unique(arr: string[]): string[] {
+  if (arr.length === 0) return arr;
+
+  // Sort numerically by converting strings to numbers
+  arr = arr.sort((a, b) => Number(a) - Number(b));
+
+  const ret: string[] = [arr[0]];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i - 1] !== arr[i]) {
+      ret.push(arr[i]);
+    }
+  }
+
+  return ret;
+}
+
 function extractTitleFromYAML(content: string): string | null {
-    const yamlRegex = /^---\n([\s\S]*?)\n---/;
+    const yamlRegex = /^---\s*\n([\s\S]*?)\n---/;
     const match = content.match(yamlRegex);
     if (match) {
         try {
@@ -149,11 +170,14 @@ function extractTitleFromYAML(content: string): string | null {
             console.error("Error parsing YAML:", e);
         }
     }
+    else{
+        console.error("No title: ", content)
+    }
     return null;
 }
 
 function triggerUpdateDecorations(editor: vscode.TextEditor) {
-    const regex = /(@?(MASTG-(TOOL|TECH|TEST)-\d{4}))/g;
+    const regex = /(@?(MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}))/g;
     const text = editor.document.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
