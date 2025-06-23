@@ -5,6 +5,7 @@ import * as yaml from 'js-yaml';
 
 let ghostTextData: { [key: string]: string } = {};
 let decorationType: vscode.TextEditorDecorationType | null = null;
+const outputChannel = vscode.window.createOutputChannel("OWASP MAS Helper");
 
 export function activate(context: vscode.ExtensionContext) {
     loadReferences();
@@ -30,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(updateCommand);
 
     let provider = vscode.languages.registerCompletionItemProvider(
-        ['plaintext', 'markdown'], // Supports text & markdown files
+        ['markdown'], // Supports text & markdown files
         {
             provideCompletionItems(document, position) {
                 const linePrefix = document.lineAt(position).text.substring(0, position.character);
@@ -77,6 +78,7 @@ async function updateReferences() {
         if (title) {
             const fileKey = path.basename(file, '.md'); // Extract MASTG-TECH-XXXX from filename
             updatedData[fileKey] = title;
+            outputChannel.appendLine(`${fileKey} -> ${title}`)
         }
     }
 
@@ -112,7 +114,7 @@ function getAllMarkdownFiles(): string[] {
         vscode.window.showErrorMessage("No workspace or folder found.");
         return [];
     }
-
+    outputChannel.appendLine(`Using base dir ${rootPath}`)
     return sort_unique(findMarkdownFilesRecursive(rootPath));
 }
 
@@ -124,7 +126,7 @@ function findMarkdownFilesRecursive(dir: string): string[] {
 
         for (const file of files) {
             if(file.name == "docs" || file.name.startsWith(".")){
-                console.log(file.name, "is ignored");
+                outputChannel.appendLine(file.name + " is ignored");
                 continue
             }
             const filePath = path.join(dir, file.name);
@@ -132,12 +134,13 @@ function findMarkdownFilesRecursive(dir: string): string[] {
             if (file.isDirectory()) {
                 results = results.concat(findMarkdownFilesRecursive(filePath));
             } else if (/^MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}\.md$/.test(file.name)) {
+                outputChannel.appendLine(`Identified markdown file: ${filePath}`)
                 results.push(filePath);
             }
         }
     } 
     catch (err) {
-        console.error(`Error reading directory ${dir}:`, err);
+        outputChannel.appendLine(`Error reading directory ${dir}`)
     }
 
     return results;
@@ -167,18 +170,23 @@ function extractTitleFromYAML(content: string): string | null {
             const yamlContent = yaml.load(match[1]) as { title?: string };
             return yamlContent?.title || null;
         } catch (e) {
-            console.error("Error parsing YAML:", e);
+            outputChannel.appendLine("Error parsing YAML: " + e)
         }
     }
     else{
-        console.error("No title: ", content)
+        outputChannel.appendLine("No title: " + content)
     }
     return null;
 }
 
 function triggerUpdateDecorations(editor: vscode.TextEditor) {
+    const doc = editor.document;
+
+    // Only proceed if the file is Markdown
+    if (doc.languageId !== 'markdown') return;
+
     const regex = /(@?(MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}))/g;
-    const text = editor.document.getText();
+    const text = doc.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
     let match;
@@ -186,8 +194,8 @@ function triggerUpdateDecorations(editor: vscode.TextEditor) {
         const key = match[2];
         const ghostText = ghostTextData[key] || "Unknown Reference";
 
-        const startPos = editor.document.positionAt(match.index);
-        const endPos = editor.document.positionAt(match.index + match[1].length);
+        const startPos = doc.positionAt(match.index);
+        const endPos = doc.positionAt(match.index + match[1].length);
 
         const decoration = {
             range: new vscode.Range(startPos, endPos),
