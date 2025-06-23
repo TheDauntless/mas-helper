@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 
-let ghostTextData: { [key: string]: string } = {};
+let ghostTextData: { [key: string]: { title: string; filePath: string } } = {};
 let decorationType: vscode.TextEditorDecorationType | null = null;
 const outputChannel = vscode.window.createOutputChannel("OWASP MAS Helper");
 
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
 
                 return Object.keys(ghostTextData).map(key => {
-                    const title = ghostTextData[key] || "Unknown Title";
+                    const title = ghostTextData[key].title || "Unknown Title";
                     const item = new vscode.CompletionItem(`${key} - ${title}`, vscode.CompletionItemKind.Reference);
                     item.insertText = `${key}`; // Insert only @ID when selected
                     return item;
@@ -51,6 +51,27 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(provider);
+
+    // Update the Quick Open Dialog
+    const disposable = vscode.commands.registerCommand('extension.searchMastgFiles', async () => {
+    const items: vscode.QuickPickItem[] = Object.entries(ghostTextData).map(([key, entry]) => ({
+      label: `${entry.title} (${key})`,
+      description: entry.filePath
+    }));
+
+    const picked = await vscode.window.showQuickPick(items, {
+      matchOnDescription: true,
+      placeHolder: 'Search MASTG files by title or ID'
+    });
+
+    if (picked) {
+      const doc = await vscode.workspace.openTextDocument(picked.description!);
+      vscode.window.showTextDocument(doc);
+    }
+  });
+
+
+  context.subscriptions.push(disposable);
 }
 
 function loadReferences() {
@@ -69,7 +90,7 @@ async function updateReferences() {
     const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const markdownFiles = getAllMarkdownFiles();
 
-    let updatedData: { [key: string]: string } = {};
+    let updatedData: { [key: string]: { title: string; filePath: string } } = {};
     for (const file of markdownFiles) {
         const filePath = file;
         const content = fs.readFileSync(filePath, 'utf8');
@@ -77,7 +98,7 @@ async function updateReferences() {
 
         if (title) {
             const fileKey = path.basename(file, '.md'); // Extract MASTG-TECH-XXXX from filename
-            updatedData[fileKey] = title;
+            updatedData[fileKey] = { title, filePath};
             outputChannel.appendLine(`${fileKey} -> ${title}`)
         }
     }
@@ -192,7 +213,7 @@ function triggerUpdateDecorations(editor: vscode.TextEditor) {
     let match;
     while ((match = regex.exec(text)) !== null) {
         const key = match[2];
-        const ghostText = ghostTextData[key] || "Unknown Reference";
+        const ghostText = ghostTextData[key].title || "Unknown Reference";
 
         const startPos = doc.positionAt(match.index);
         const endPos = doc.positionAt(match.index + match[1].length);

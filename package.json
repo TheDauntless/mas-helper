@@ -2,7 +2,7 @@
   "name": "mas-helper",
   "displayName": "mas-helper",
   "description": "Automatically resolves MASTG references and provide autocomplete for MAS IDs",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -12,8 +12,10 @@
   "activationEvents": [
     "onStartupFinished",
     "onLanguage:markdown",
-    "onCommand:extension.updateGhostTextData",
-    "workspaceContains:**/*.md"
+    "workspaceContains:**/*.md",
+    "onCommand:extension.updateReferences",
+    "onCommand:extension.searchMastgFiles"
+
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -21,6 +23,10 @@
       {
         "command": "extension.updateReferences",
         "title": "MAS: Update references"
+      },
+      {
+        "command": "extension.searchMastgFiles",
+        "title": "MAS: Search MASTG Files"
       }
     ],
     "languages": [
