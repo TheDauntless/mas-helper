@@ -3,7 +3,7 @@
   "displayName": "mas-helper",
   "description": "Automatically resolves MASTG references and provide autocomplete for MAS IDs",
   "publisher": "thedauntless",
-  "version": "0.1",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.97.0"
   },
