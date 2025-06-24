@@ -53,26 +53,73 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(provider);
 
     // Update the Quick Open Dialog
-    const disposable = vscode.commands.registerCommand('extension.searchMastgFiles', async () => {
-    const items: vscode.QuickPickItem[] = Object.entries(ghostTextData).map(([key, entry]) => ({
-      label: `${entry.title} (${key})`,
-      description: entry.filePath
-    }));
-
-    const picked = await vscode.window.showQuickPick(items, {
-      matchOnDescription: true,
-      placeHolder: 'Search MASTG files by title or ID'
-    });
-
-    if (picked) {
-      const doc = await vscode.workspace.openTextDocument(picked.description!);
-      vscode.window.showTextDocument(doc);
-    }
-  });
-
-
-  context.subscriptions.push(disposable);
+    vscode.commands.registerCommand('extension.searchMastgFiles', searchMastgItems()),
+        vscode.commands.registerCommand('extension.searchTools', searchMastgItems('TOOL')),
+        vscode.commands.registerCommand('extension.searchTechniques', searchMastgItems('TECH')),
+        vscode.commands.registerCommand('extension.searchTests', searchMastgItems('TEST')),
+        vscode.commands.registerCommand('extension.searchApps', searchMastgItems('APP')),
+        vscode.commands.registerCommand('extension.searchDemos', searchMastgItems('DEMO'))
+    vscode.commands.registerCommand('extension.searchMASWE', searchMastgItems('MASWE'))
 }
+
+function searchMastgItems(typeFilter?: string) {
+    return async () => {
+        const sortedEntries = Object.entries(ghostTextData)
+            .map(([key, value]) => {
+                const match = key.match(/^(MA(?:STG|SWE))-(?:([A-Z]+)-)?(\d{4})$/);
+                if (!match) return null;
+
+                const [, prefix, maybeSubtype, num] = match;
+
+                // Determine the type based on the prefix
+                const type = prefix === "MASTG" ? maybeSubtype : prefix;
+                return {
+                    key,
+                    title: value.title || value,
+                    filePath: value.filePath || '',
+                    type,
+                    num: Number(num)
+                };
+            })
+            .filter(entry => entry !== null)
+            .filter(entry => !typeFilter || entry.type === typeFilter)
+            .sort((a, b) => {
+                if (a.type !== b.type) return a.type.localeCompare(b.type);
+                return a.num - b.num;
+            });
+
+        const items: vscode.QuickPickItem[] = [];
+        let lastType = '';
+
+        for (const entry of sortedEntries) {
+            if (!typeFilter && entry.type !== lastType) {
+                items.push({
+                    kind: vscode.QuickPickItemKind.Separator,
+                    label: entry.type
+                } as any);
+                lastType = entry.type;
+            }
+
+            items.push({
+                label: `${entry.key} ${entry.title} (${entry.key})`,
+                description: entry.filePath
+            });
+        }
+
+        const picked = await vscode.window.showQuickPick(items, {
+            matchOnDescription: true,
+            placeHolder: typeFilter
+                ? `Search only ${typeFilter} items`
+                : 'Search MAS files by title or ID'
+        });
+
+        if (picked && picked.kind !== vscode.QuickPickItemKind.Separator) {
+            const doc = await vscode.workspace.openTextDocument(picked.description!);
+            vscode.window.showTextDocument(doc);
+        }
+    };
+}
+
 
 function loadReferences() {
     const dataPath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', 'references.json');
@@ -98,7 +145,7 @@ async function updateReferences() {
 
         if (title) {
             const fileKey = path.basename(file, '.md'); // Extract MASTG-TECH-XXXX from filename
-            updatedData[fileKey] = { title, filePath};
+            updatedData[fileKey] = { title, filePath };
             outputChannel.appendLine(`${fileKey} -> ${title}`)
         }
     }
@@ -146,20 +193,20 @@ function findMarkdownFilesRecursive(dir: string): string[] {
         const files = fs.readdirSync(dir, { withFileTypes: true });
 
         for (const file of files) {
-            if(file.name == "docs" || file.name.startsWith(".")){
+            if (file.name == "docs" || file.name.startsWith(".")) {
                 outputChannel.appendLine(file.name + " is ignored");
                 continue
             }
             const filePath = path.join(dir, file.name);
-
+            outputChannel.appendLine(`Checking file: ${filePath}`);
             if (file.isDirectory()) {
                 results = results.concat(findMarkdownFilesRecursive(filePath));
-            } else if (/^MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}\.md$/.test(file.name)) {
+            } else if (/^MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}\.md$|^MASWE-\d{4}\.md$/.test(file.name)) {
                 outputChannel.appendLine(`Identified markdown file: ${filePath}`)
                 results.push(filePath);
             }
         }
-    } 
+    }
     catch (err) {
         outputChannel.appendLine(`Error reading directory ${dir}`)
     }
@@ -168,19 +215,19 @@ function findMarkdownFilesRecursive(dir: string): string[] {
 }
 
 function sort_unique(arr: string[]): string[] {
-  if (arr.length === 0) return arr;
+    if (arr.length === 0) return arr;
 
-  // Sort numerically by converting strings to numbers
-  arr = arr.sort((a, b) => Number(a) - Number(b));
+    // Sort numerically by converting strings to numbers
+    arr = arr.sort((a, b) => Number(a) - Number(b));
 
-  const ret: string[] = [arr[0]];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i - 1] !== arr[i]) {
-      ret.push(arr[i]);
+    const ret: string[] = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i - 1] !== arr[i]) {
+            ret.push(arr[i]);
+        }
     }
-  }
 
-  return ret;
+    return ret;
 }
 
 function extractTitleFromYAML(content: string): string | null {
@@ -194,7 +241,7 @@ function extractTitleFromYAML(content: string): string | null {
             outputChannel.appendLine("Error parsing YAML: " + e)
         }
     }
-    else{
+    else {
         outputChannel.appendLine("No title: " + content)
     }
     return null;
@@ -206,7 +253,7 @@ function triggerUpdateDecorations(editor: vscode.TextEditor) {
     // Only proceed if the file is Markdown
     if (doc.languageId !== 'markdown') return;
 
-    const regex = /(@?(MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}))/g;
+    const regex = /(@?(MASTG-(TOOL|TECH|TEST|DEMO|APP|BEST)-\d{4}|MASWE-\d{4}))/g;
     const text = doc.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
@@ -239,4 +286,4 @@ function triggerUpdateDecorations(editor: vscode.TextEditor) {
     editor.setDecorations(decorationType, decorations);
 }
 
-export function deactivate() {}
+export function deactivate() { }

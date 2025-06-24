@@ -2,7 +2,8 @@
   "name": "mas-helper",
   "displayName": "mas-helper",
   "description": "Automatically resolves MASTG references and provide autocomplete for MAS IDs",
-  "version": "0.0.4",
+  "publisher": "thedauntless",
+  "version": "0.1",
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -12,10 +13,7 @@
   "activationEvents": [
     "onStartupFinished",
     "onLanguage:markdown",
-    "workspaceContains:**/*.md",
-    "onCommand:extension.updateReferences",
-    "onCommand:extension.searchMastgFiles"
-
+    "workspaceContains:**/*.md"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -26,7 +24,31 @@
       },
       {
         "command": "extension.searchMastgFiles",
-        "title": "MAS: Search MASTG Files"
+        "title": "MAS: Search All References"
+      },
+      {
+        "command": "extension.searchTools",
+        "title": "MAS: Search TOOL References"
+      },
+      {
+        "command": "extension.searchTechniques",
+        "title": "MAS: Search TECH References"
+      },
+      {
+        "command": "extension.searchTests",
+        "title": "MAS: Search TEST References"
+      },
+      {
+        "command": "extension.searchApps",
+        "title": "MAS: Search APP References"
+      },
+      {
+        "command": "extension.searchDemos",
+        "title": "MAS: Search DEMO References"
+      },
+      {
+        "command": "extension.searchMASWE",
+        "title": "MAS: Search MASWE References"
       }
     ],
     "languages": [
@@ -54,13 +76,13 @@
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.19.0",
-    "typescript": "^5.8.3",
-    "vscode": "^1.1.37"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
